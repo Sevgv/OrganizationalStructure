@@ -6,10 +6,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+var connectionStringBuilder = new Npgsql.NpgsqlConnectionStringBuilder(
+    builder.Configuration.GetConnectionString("OrgStructure"));
+connectionStringBuilder.Password = builder.Configuration["DBPassword"];
+
+var connection = connectionStringBuilder.ConnectionString;
+
 builder.Services.AddDbContext<OrgStructureContext>(
     options => options
     .UseLazyLoadingProxies()
-    .UseNpgsql(builder.Configuration["ConnectionStrings:OrgStructure"])
+    .UseNpgsql(connection)
     );
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
