@@ -6,9 +6,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-var con = "Host=localhost;Port=5432;Database=orgstructuredb;Username=postgres;Password=12345678";
 builder.Services.AddDbContext<OrgStructureContext>(
-    options => options.UseLazyLoadingProxies().UseNpgsql(con));
+    options => options
+    .UseLazyLoadingProxies()
+    .UseNpgsql(builder.Configuration["ConnectionStrings:OrgStructure"])
+    );
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
