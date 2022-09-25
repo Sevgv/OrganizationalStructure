@@ -53,7 +53,7 @@ public class ImportController : ControllerBase
                 .DistinctBy(x => $"{x.Name}{x.ParentDepartment?.Name ?? ""}")
                 .ToList();
 
-            await _importRepository.InitializeDatabase();
+            await _importRepository.CleareDatabase();
 
             users.ForEach(user => user.Id = Guid.NewGuid());
             await _userRepository.AddManyAsync(users);         

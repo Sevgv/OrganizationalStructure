@@ -6,7 +6,6 @@ using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 //TODO: Задокументирвать все функции, классы и интерфейсы
 //TODO: Сделать логирование
 //TODO: Сделать валидацию через Fluent Validation
-//TODO: Перенести навигационные поля в Fluent API
 //TODO: Сделать обработку исключений
 //TODO: Сделать юнит тесты
 
@@ -29,6 +28,7 @@ builder.Services.AddDbContext<OrgStructureContext>(
     .UseNpgsql(connection)
     );
 
+// Add repository services
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IImportRepository, ImportRepository>();
 builder.Services.AddScoped<IOrgStructureRepository, OrgStructureRepository>();

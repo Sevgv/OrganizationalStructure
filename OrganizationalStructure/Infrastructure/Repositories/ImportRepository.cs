@@ -1,4 +1,5 @@
-﻿using OfficeOpenXml;
+﻿using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
 using OrganizationalStructure.Extensions;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 using OrganizationalStructure.Models.ImportModels;
@@ -26,10 +27,13 @@ namespace OrganizationalStructure.Infrastructure.Repositories
             return newcollection;
         }
 
-        public async Task InitializeDatabase()
+        public async Task CleareDatabase()
         {
-            await _context.Database.EnsureDeletedAsync();
-            await _context.Database.EnsureCreatedAsync();
+            await _context.Database.ExecuteSqlRawAsync("" +
+                "TRUNCATE TABLE public.\"OrgStructures\" CASCADE;\r\n" +
+                "TRUNCATE TABLE public.\"Departments\" CASCADE;\r\n" +
+                "TRUNCATE TABLE public.\"Positions\" CASCADE;\r\n" +
+                "TRUNCATE TABLE public.\"Users\" CASCADE;");
         }
     }
 }

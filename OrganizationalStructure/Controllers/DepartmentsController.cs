@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrganizationalStructure.Domain;
-using OrganizationalStructure.Infrastructure.Repositories;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 using OrganizationalStructure.Models.DepartmentModels;
 
@@ -109,20 +108,22 @@ public class DepartmentsController : ControllerBase
     {
         if (_departmentRepository == null || _unitOfWork == null) return NotFound();
 
-        var department = await _departmentRepository.GetByIdAsync(id);
-        if (department == null) return NotFound();
+        var department = new Department { Id = id };
 
-        // TODO: реализовать set null на стороне БД у дочерних отделов, когда их родительский удаляют
-        var childDepartments = await _departmentRepository
-            .GetAsync(department => department.ParentDepartmentId == id);
-        childDepartments.ToList().ForEach(x => 
+        try
         {
-            x.ParentDepartmentId = null;
-            x.ParentDepartment = null;
-        });
+            _departmentRepository.Delete(department);
+            await _unitOfWork.Commit();
+        }
+        catch(DbUpdateConcurrencyException e)
+        {
+            return NotFound($"Record does not exist in the database. Message: {e.Message}");
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
+        }
 
-        _departmentRepository.Delete(department);
-        await _unitOfWork.Commit();
 
         return NoContent();
     }

@@ -13,4 +13,13 @@ public class OrgStructureContext : DbContext
     public OrgStructureContext(DbContextOptions<OrgStructureContext> options)
         : base(options)
     { }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Department>()
+            .HasMany(d => d.Departments)
+            .WithOne(pd => pd.ParentDepartment)
+            .HasForeignKey(k => k.ParentDepartmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
 }
