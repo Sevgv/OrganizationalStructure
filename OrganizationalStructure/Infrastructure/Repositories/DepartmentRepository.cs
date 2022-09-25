@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using OrganizationalStructure.Domain;
+﻿using OrganizationalStructure.Domain;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 
 namespace OrganizationalStructure.Infrastructure.Repositories
@@ -9,6 +8,6 @@ namespace OrganizationalStructure.Infrastructure.Repositories
         public DepartmentRepository(OrgStructureContext context) 
             : base(context) 
         { 
-        }         
+        }
     }
 }

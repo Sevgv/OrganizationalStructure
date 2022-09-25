@@ -2,10 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using OrganizationalStructure.Infrastructure;
 using OrganizationalStructure.Infrastructure.Repositories;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
+using OrganizationalStructure.Validators;
 
-//TODO: Задокументирвать все функции, классы и интерфейсы
+//TODO: Задокументировать все функции, классы и интерфейсы
 //TODO: Сделать логирование
-//TODO: Сделать валидацию через Fluent Validation
 //TODO: Сделать обработку исключений
 //TODO: Сделать юнит тесты
 
@@ -35,6 +35,12 @@ builder.Services.AddScoped<IOrgStructureRepository, OrgStructureRepository>();
 builder.Services.AddScoped<IPositionRepository, PositionRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Add validation services
+builder.Services.AddScoped<DepartmentValidator>();
+builder.Services.AddScoped<OrgStructureValidator>();
+builder.Services.AddScoped<PositionValidator>();
+builder.Services.AddScoped<UserValidator>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

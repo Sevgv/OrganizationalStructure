@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrganizationalStructure.Domain;
+using OrganizationalStructure.Extensions;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 using OrganizationalStructure.Models.OrgStructureModels;
+using OrganizationalStructure.Validators;
 
 namespace OrganizationalStructure.Controllers;
 
@@ -16,18 +18,23 @@ public class OrgStructuresController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
+    private readonly OrgStructureValidator _validator;
+
     public OrgStructuresController(
         IOrgStructureRepository orgStructureRepository,
         IDepartmentRepository departmentRepository,
         IPositionRepository positionRepository,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        OrgStructureValidator validator)
     {
         _orgStructureRepository = orgStructureRepository;
         _departmentRepository = departmentRepository;
         _positionRepository = positionRepository;
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+
+        _validator = validator;
     }
 
     // GET: api/OrgStructures
@@ -47,8 +54,8 @@ public class OrgStructuresController : ControllerBase
         if (_orgStructureRepository == null) return NotFound();
 
         var orgStructure = await _orgStructureRepository.GetByIdAsync(id);
-        if (orgStructure == null)return NotFound();
-        
+        if (orgStructure == null) return NotFound();
+
         return new OrgStructureModel(orgStructure);
     }
 
@@ -58,12 +65,16 @@ public class OrgStructuresController : ControllerBase
     public async Task<IActionResult> PutOrgStructure(Guid id, OrgStructure orgStructure)
     {
         if (id != orgStructure.Id) return BadRequest();
-        if (_orgStructureRepository == null ||            
+        if (_orgStructureRepository == null ||
             _departmentRepository == null ||
             _positionRepository == null ||
             _userRepository == null ||
-            _unitOfWork == null) 
+            _unitOfWork == null)
             return NotFound();
+
+        var results = _validator.Validate(orgStructure);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
 
         try
         {
@@ -79,7 +90,7 @@ public class OrgStructuresController : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!await _orgStructureRepository.IsExists(id)) return NotFound();           
+            if (!await _orgStructureRepository.IsExists(x => x.Id == id)) return NotFound();
             else throw;
         }
         catch (Exception e)
@@ -99,6 +110,10 @@ public class OrgStructuresController : ControllerBase
             _userRepository == null ||
             _unitOfWork == null)
             return NotFound();
+
+        var results = _validator.Validate(orgStructure);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
 
         var newOrgStructure = new OrgStructure { Id = Guid.NewGuid() };
 
@@ -120,7 +135,7 @@ public class OrgStructuresController : ControllerBase
         catch (Exception e)
         {
             return Problem(e.Message);
-        }          
+        }
     }
 
     // DELETE: api/OrgStructures/{Guid}

@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrganizationalStructure.Domain;
-using OrganizationalStructure.Infrastructure.Repositories;
+using OrganizationalStructure.Extensions;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 using OrganizationalStructure.Models.PositionModels;
+using OrganizationalStructure.Validators;
 
 namespace OrganizationalStructure.Controllers;
 
@@ -14,10 +15,17 @@ public class PositionsController : ControllerBase
     private readonly IPositionRepository _positionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public PositionsController(IPositionRepository positionRepository, IUnitOfWork unitOfWork)
+    private readonly PositionValidator _validator;
+
+    public PositionsController(
+        IPositionRepository positionRepository, 
+        IUnitOfWork unitOfWork,
+        PositionValidator validator)
     {
         _positionRepository = positionRepository;
         _unitOfWork = unitOfWork;
+
+        _validator = validator;
     }
 
     // GET: api/Positions
@@ -50,6 +58,10 @@ public class PositionsController : ControllerBase
         if (id != position.Id) return BadRequest();
         if (_positionRepository == null || _unitOfWork == null) return NotFound();
 
+        var results = _validator.Validate(position);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
+
         var pos = await _positionRepository.GetByIdAsync(position.Id);
         if (pos == null) return NotFound();
 
@@ -61,7 +73,7 @@ public class PositionsController : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!await _positionRepository.IsExists(id)) return NotFound();
+            if (!await _positionRepository.IsExists(x => x.Id == id)) return NotFound();
             else throw;
         }
 
@@ -74,6 +86,10 @@ public class PositionsController : ControllerBase
     public async Task<ActionResult<PositionModel>> PostPosition(Position position)
     {
         if (_positionRepository == null || _unitOfWork == null) return NotFound();
+
+        var results = _validator.Validate(position);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
 
         var newPosition = new Position { Id = Guid.NewGuid() };
 

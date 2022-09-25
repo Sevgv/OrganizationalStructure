@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrganizationalStructure.Domain;
+using OrganizationalStructure.Extensions;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 using OrganizationalStructure.Models.DepartmentModels;
+using OrganizationalStructure.Validators;
 
 namespace OrganizationalStructure.Controllers;
 
@@ -13,10 +15,17 @@ public class DepartmentsController : ControllerBase
     private readonly IDepartmentRepository _departmentRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DepartmentsController(IDepartmentRepository departmentRepository, IUnitOfWork unitOfWork)
+    private readonly DepartmentValidator _validator;
+
+    public DepartmentsController(
+        IDepartmentRepository departmentRepository, 
+        IUnitOfWork unitOfWork, 
+        DepartmentValidator validator)
     {
         _departmentRepository = departmentRepository;
         _unitOfWork = unitOfWork;
+
+        _validator = validator;
     }
 
     // GET: api/Departments/{Guid}
@@ -47,9 +56,13 @@ public class DepartmentsController : ControllerBase
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
     public async Task<IActionResult> PutDepartment(Guid id, Department department)
-    {
+    {       
         if (id != department.Id) return BadRequest();
         if (_departmentRepository == null || _unitOfWork == null) return NotFound();
+
+        var results = _validator.Validate(department);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
 
         var dep = await _departmentRepository.GetByIdAsync(department.Id);
         if (dep == null) return NotFound();
@@ -65,7 +78,7 @@ public class DepartmentsController : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!await _departmentRepository.IsExists(id)) return NotFound();
+            if (!await _departmentRepository.IsExists(x => x.Id == id)) return NotFound();
             else throw;           
         }
 
@@ -83,14 +96,17 @@ public class DepartmentsController : ControllerBase
 
         try
         {
-            if (string.IsNullOrEmpty(department.Name)) return BadRequest("Не указано название отдела");
+            var results = _validator.Validate(department);
+            if (!results.IsValid)
+                return ValidationProblem(results.Errors.GetStringErrorMessange());
+
             newDepartment.Name = department.Name;
             // If the parent department is null,
             // then the depatment becomes the root department
             newDepartment.ParentDepartment = department.ParentDepartmentId != null 
                 ? await _departmentRepository.GetByIdAsync((Guid)department.ParentDepartmentId)
                 : null;
-
+           
             newDepartment = await _departmentRepository.AddAsync(newDepartment);
             await _unitOfWork.Commit();
         }

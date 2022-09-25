@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OrganizationalStructure.Domain;
+using OrganizationalStructure.Extensions;
 using OrganizationalStructure.Infrastructure.Repositories.Contracts;
 using OrganizationalStructure.Models.UserModels;
+using OrganizationalStructure.Validators;
 
 namespace OrganizationalStructure.Controllers;
 
@@ -13,10 +15,17 @@ public class UsersController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UsersController(IUserRepository userRepository, IUnitOfWork unitOfWork)
+    private readonly UserValidator _validator;
+
+    public UsersController(
+        IUserRepository userRepository, 
+        IUnitOfWork unitOfWork,
+        UserValidator validator)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+
+        _validator = validator;
     }
 
     // GET: api/Users
@@ -49,6 +58,10 @@ public class UsersController : ControllerBase
         if (id != user.Id) return BadRequest();
         if (_userRepository == null || _unitOfWork == null) return NotFound();
 
+        var results = _validator.Validate(user);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
+
         var u = await _userRepository.GetByIdAsync(user.Id);
         if (u == null) return NotFound();
 
@@ -62,7 +75,7 @@ public class UsersController : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!await _userRepository.IsExists(id)) return NotFound();
+            if (!await _userRepository.IsExists(x => x.Id == id)) return NotFound();
             else throw;
         }
 
@@ -75,6 +88,10 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserModel>> PostUser(User user)
     {
         if (_userRepository == null || _unitOfWork == null) return NotFound();
+
+        var results = _validator.Validate(user);
+        if (!results.IsValid)
+            return ValidationProblem(results.Errors.GetStringErrorMessange());
 
         var newUser = new User { Id = Guid.NewGuid() };
 
