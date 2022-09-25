@@ -1,146 +1,141 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OrganizationalStructure.Entities;
-using OrganizationalStructure.Models;
+using OrganizationalStructure.Domain;
+using OrganizationalStructure.Infrastructure.Repositories;
+using OrganizationalStructure.Infrastructure.Repositories.Contracts;
+using OrganizationalStructure.Models.DepartmentModels;
 
-namespace OrganizationalStructure.Controllers
+namespace OrganizationalStructure.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class DepartmentsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class DepartmentsController : ControllerBase
+    private readonly IDepartmentRepository _departmentRepository;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public DepartmentsController(IDepartmentRepository departmentRepository, IUnitOfWork unitOfWork)
     {
-        private readonly OrgStructureContext _context;
+        _departmentRepository = departmentRepository;
+        _unitOfWork = unitOfWork;
+    }
 
-        public DepartmentsController(OrgStructureContext context)
+    // GET: api/Departments/{Guid}
+    [HttpGet("GetDepartmentsByParentId/{parentId}")]
+    public async Task<ActionResult<IEnumerable<DepartmentModel>>> GetDepartmentsByParentId(Guid parentId)
+    {
+        if (_departmentRepository == null) return NotFound();
+
+        return (await _departmentRepository
+            .GetAsync(department => department.ParentDepartmentId == parentId))
+            .Select(x => new DepartmentModel(x)).ToList();
+    }
+
+    // GET: api/Departments/{Guid}
+    [HttpGet("{id}")]
+    public async Task<ActionResult<DepartmentModel>> GetDepartment(Guid id)
+    {
+        if (_departmentRepository == null) return NotFound();
+        
+        var department = await _departmentRepository.GetByIdAsync(id);
+        if (department == null) return NotFound();
+        
+        return new DepartmentModel(department);
+    }
+
+    // TODO: Задокументировать, что при передаче ParentId == null, отдел становится корневым, а не записывается старое значение
+    // PUT: api/Departments/{Guid}
+    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+    [HttpPut("{id}")]
+    public async Task<IActionResult> PutDepartment(Guid id, Department department)
+    {
+        if (id != department.Id) return BadRequest();
+        if (_departmentRepository == null || _unitOfWork == null) return NotFound();
+
+        var dep = await _departmentRepository.GetByIdAsync(department.Id);
+        if (dep == null) return NotFound();
+
+        dep.Name = !string.IsNullOrEmpty(department.Name) ? department.Name : dep.Name;
+        dep.ParentDepartment = department.ParentDepartmentId != null 
+            ? await _departmentRepository.GetByIdAsync((Guid)department.ParentDepartmentId)
+            : null;
+
+        try
         {
-            _context = context;
+            await _unitOfWork.Commit();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await _departmentRepository.IsExists(id)) return NotFound();
+            else throw;           
         }
 
-        // GET: api/Departments/{Guid}
-        [HttpGet("GetDepartmentsByParentId/{parentId}")]
-        public async Task<ActionResult<IEnumerable<DepartmentModel>>> GetDepartmentsByParentId(Guid parentId)
+        return NoContent();
+    }
+
+    // POST: api/Departments
+    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+    [HttpPost]
+    public async Task<ActionResult<DepartmentModel>> PostDepartment(Department department)
+    {
+        if (_departmentRepository == null || _unitOfWork == null) return NotFound();
+
+        var newDepartment = new Department { Id = Guid.NewGuid() };
+
+        try
         {
-            if (_context.Departments == null)
-            {
-                return NotFound();
-            }
-            return (await _context.Departments.Where(x => x.ParentDepartmentId == parentId).ToListAsync())
-                .Select(x => new DepartmentModel(x)).ToList();
+            if (string.IsNullOrEmpty(department.Name)) return BadRequest("Не указано название отдела");
+            newDepartment.Name = department.Name;
+            // If the parent department is null,
+            // then the depatment becomes the root department
+            newDepartment.ParentDepartment = department.ParentDepartmentId != null 
+                ? await _departmentRepository.GetByIdAsync((Guid)department.ParentDepartmentId)
+                : null;
+
+            newDepartment = await _departmentRepository.AddAsync(newDepartment);
+            await _unitOfWork.Commit();
+        }
+        catch (Exception e)
+        {
+            return Problem(e.Message);
         }
 
-        // GET: api/Departments/{Guid}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<DepartmentModel>> GetDepartment(Guid id)
+        return CreatedAtAction("GetDepartment", new { id = newDepartment.Id }, new DepartmentModel(newDepartment));
+    }
+
+    // DELETE: api/Departments/{Guid}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteDepartment(Guid id)
+    {
+        if (_departmentRepository == null || _unitOfWork == null) return NotFound();
+
+        var department = await _departmentRepository.GetByIdAsync(id);
+        if (department == null) return NotFound();
+
+        // TODO: реализовать set null на стороне БД у дочерних отделов, когда их родительский удаляют
+        var childDepartments = await _departmentRepository
+            .GetAsync(department => department.ParentDepartmentId == id);
+        childDepartments.ToList().ForEach(x => 
         {
-            if (_context.Departments == null)
-            {
-                return NotFound();
-            }
-            var department = await _context.Departments.FindAsync(id);
+            x.ParentDepartmentId = null;
+            x.ParentDepartment = null;
+        });
 
-            if (department == null)
-            {
-                return NotFound();
-            }
+        _departmentRepository.Delete(department);
+        await _unitOfWork.Commit();
 
-            return new DepartmentModel(department);
-        }
+        return NoContent();
+    }
 
-        // PUT: api/Departments/{Guid}
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutDepartment(Guid id, Department department)
-        {
-            if (id != department.Id)
-            {
-                return BadRequest();
-            }
+    [HttpGet]
+    [Route("GetDepartmentsInfo")]
+    public async Task<ActionResult<IEnumerable<DepartmentInfo>>> GetDepartmentsInfo()
+    {
+        if (_departmentRepository == null) return NotFound();
 
-            var dep = await _context.Departments.FindAsync(department.Id);
-            if (dep == null) return NotFound();
+        var departments = await _departmentRepository.GetAllAsync();
+        if (departments == null || !departments.Any()) return NotFound();
 
-            dep.Name = !string.IsNullOrEmpty(department.Name) ? department.Name : dep.Name;
-            dep.ParentDepartment = await _context.Departments.FindAsync(department.ParentDepartmentId) 
-                ?? dep.ParentDepartment;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!DepartmentExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // POST: api/Departments
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<DepartmentModel>> PostDepartment(Department department)
-        {
-            if (_context.Departments == null)
-            {
-                return Problem("Entity set 'OrgStructureContext.Departments'  is null.");
-            }
-
-            var dep = new Department { Id = Guid.NewGuid() };
-
-            try
-            {
-                if (string.IsNullOrEmpty(department.Name)) return BadRequest("Не указано название отдела");
-                dep.Name = department.Name;
-                dep.ParentDepartment = await _context.Departments.FindAsync(department.ParentDepartmentId);
-                
-                _context.Departments.Add(dep);
-                await _context.SaveChangesAsync();
-            }
-            catch (Exception e)
-            {
-                return Problem(e.Message);
-            }
-
-            return CreatedAtAction("GetDepartment", new { id = dep.Id }, new DepartmentModel(dep));
-        }
-
-        // DELETE: api/Departments/{Guid}
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteDepartment(Guid id)
-        {
-            if (_context.Departments == null)
-            {
-                return NotFound();
-            }
-            var department = await _context.Departments.FindAsync(id);
-            if (department == null)
-            {
-                return NotFound();
-            }
-
-            var childDepartments = await _context.Departments.Where(x => x.ParentDepartment == department).ToListAsync();
-            childDepartments.ForEach(x => 
-            {
-                x.ParentDepartmentId = null;
-                x.ParentDepartment = null;
-            });
-
-            _context.Departments.Remove(department);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool DepartmentExists(Guid id)
-        {
-            return (_context.Departments?.Any(e => e.Id == id)).GetValueOrDefault();
-        }
+        return departments.Select(x => new DepartmentInfo(x)).ToList();
     }
 }

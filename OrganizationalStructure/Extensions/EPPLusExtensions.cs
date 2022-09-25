@@ -1,80 +1,70 @@
 ﻿using OfficeOpenXml;
+using OrganizationalStructure.Models.ImportModels;
 using System.Reflection;
 
-namespace OrganizationalStructure.Extensions
+namespace OrganizationalStructure.Extensions;
+
+public static class EPPLusExtensions
 {
-    [AttributeUsage(AttributeTargets.All)]
-    public class Column : Attribute
+    public static IEnumerable<T> ConvertSheetToObjects<T>(this ExcelWorksheet worksheet) where T : new()
     {
-        public int ColumnIndex { get; set; }
 
-        public Column(int column)
+        Func<CustomAttributeData, bool> columnOnly = y => y.AttributeType == typeof(Column);
+
+        var columns = typeof(T)
+                .GetProperties()
+                .Where(x => x.CustomAttributes.Any(columnOnly))
+        .Select(p => new
         {
-            ColumnIndex = column;
-        }
-    }
-    public static class EPPLusExtensions
-    {
-        public static IEnumerable<T> ConvertSheetToObjects<T>(this ExcelWorksheet worksheet) where T : new()
-        {
+            Property = p,
+            Column = p.GetCustomAttribute<Column>()?.ColumnIndex ?? 0
+        }).ToList();
 
-            Func<CustomAttributeData, bool> columnOnly = y => y.AttributeType == typeof(Column);
+        var rows = worksheet.Cells
+            .Select(cell => cell.Start.Row)
+            .Distinct()
+            .OrderBy(x => x);
 
-            var columns = typeof(T)
-                    .GetProperties()
-                    .Where(x => x.CustomAttributes.Any(columnOnly))
-            .Select(p => new
+
+        //Create the collection container
+        var collection = rows.Skip(1)
+            .Select(row =>
             {
-                Property = p,
-                Column = p.GetCustomAttribute<Column>()?.ColumnIndex ?? 0
-            }).ToList();
-
-            var rows = worksheet.Cells
-                .Select(cell => cell.Start.Row)
-                .Distinct()
-                .OrderBy(x => x);
-
-
-            //Create the collection container
-            var collection = rows.Skip(1)
-                .Select(row =>
+                var tnew = new T();
+                columns.ForEach(col =>
                 {
-                    var tnew = new T();
-                    columns.ForEach(col =>
+                    //This is the real wrinkle to using reflection - Excel stores all numbers as double including int
+                    var val = worksheet.Cells[row, col.Column];
+                    //If it is numeric it is a double since that is how excel stores all numbers
+                    if (val.Value == null)
                     {
-                        //This is the real wrinkle to using reflection - Excel stores all numbers as double including int
-                        var val = worksheet.Cells[row, col.Column];
-                        //If it is numeric it is a double since that is how excel stores all numbers
-                        if (val.Value == null)
-                        {
-                            col.Property.SetValue(tnew, null);
-                            return;
-                        }
-                        if (col.Property.PropertyType == typeof(Int32))
-                        {
-                            col.Property.SetValue(tnew, val.GetValue<int>());
-                            return;
-                        }
-                        if (col.Property.PropertyType == typeof(double))
-                        {
-                            col.Property.SetValue(tnew, val.GetValue<double>());
-                            return;
-                        }
-                        if (col.Property.PropertyType == typeof(DateTime))
-                        {
-                            col.Property.SetValue(tnew, val.GetValue<DateTime>());
-                            return;
-                        }
-                        //Its a string
-                        col.Property.SetValue(tnew, val.GetValue<string>());
-                    });
-
-                    return tnew;
+                        col.Property.SetValue(tnew, null);
+                        return;
+                    }
+                    if (col.Property.PropertyType == typeof(Int32))
+                    {
+                        col.Property.SetValue(tnew, val.GetValue<int>());
+                        return;
+                    }
+                    if (col.Property.PropertyType == typeof(double))
+                    {
+                        col.Property.SetValue(tnew, val.GetValue<double>());
+                        return;
+                    }
+                    if (col.Property.PropertyType == typeof(DateTime))
+                    {
+                        col.Property.SetValue(tnew, val.GetValue<DateTime>());
+                        return;
+                    }
+                    //Its a string
+                    col.Property.SetValue(tnew, val.GetValue<string>());
                 });
 
+                return tnew;
+            });
 
-            //Send it back
-            return collection;
-        }
+
+        //Send it back
+        return collection;
     }
 }
