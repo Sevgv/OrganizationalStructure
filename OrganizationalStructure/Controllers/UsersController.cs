@@ -51,7 +51,6 @@ public class UsersController : ControllerBase
     }
 
     // PUT: api/Users/{Guid}
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
     public async Task<IActionResult> PutUser(Guid id, User user)
     {
@@ -83,7 +82,6 @@ public class UsersController : ControllerBase
     }
 
     // POST: api/Users
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPost]
     public async Task<ActionResult<UserModel>> PostUser(User user)
     {

@@ -29,6 +29,11 @@ public class DepartmentsController : ControllerBase
     }
 
     // GET: api/Departments/{Guid}
+    /// <summary>
+    /// Gets departments by parent department only
+    /// </summary>
+    /// <param name="parentId"></param>
+    /// <returns></returns>
     [HttpGet("GetDepartmentsByParentId/{parentId}")]
     public async Task<ActionResult<IEnumerable<DepartmentModel>>> GetDepartmentsByParentId(Guid parentId)
     {
@@ -51,9 +56,7 @@ public class DepartmentsController : ControllerBase
         return new DepartmentModel(department);
     }
 
-    // TODO: Задокументировать, что при передаче ParentId == null, отдел становится корневым, а не записывается старое значение
     // PUT: api/Departments/{Guid}
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
     public async Task<IActionResult> PutDepartment(Guid id, Department department)
     {       
@@ -86,7 +89,6 @@ public class DepartmentsController : ControllerBase
     }
 
     // POST: api/Departments
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPost]
     public async Task<ActionResult<DepartmentModel>> PostDepartment(Department department)
     {
@@ -144,6 +146,11 @@ public class DepartmentsController : ControllerBase
         return NoContent();
     }
 
+    // GET: api/Departments/GetDepartmentsInfo
+    /// <summary>
+    /// Displays information on the number of employees in each department and the number of positions in that department
+    /// </summary>
+    /// <returns></returns>
     [HttpGet]
     [Route("GetDepartmentsInfo")]
     public async Task<ActionResult<IEnumerable<DepartmentInfo>>> GetDepartmentsInfo()

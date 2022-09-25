@@ -2,6 +2,9 @@
 
 namespace OrganizationalStructure.Models.ImportModels;
 
+/// <summary>
+/// Data transfer object for import data from file
+/// </summary>
 public class OrgStructureDto
 {
     [Column(1)]

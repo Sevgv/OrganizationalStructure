@@ -60,7 +60,6 @@ public class OrgStructuresController : ControllerBase
     }
 
     // PUT: api/OrgStructures/{Guid}
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPut("{id}")]
     public async Task<IActionResult> PutOrgStructure(Guid id, OrgStructure orgStructure)
     {
@@ -100,7 +99,6 @@ public class OrgStructuresController : ControllerBase
     }
 
     // POST: api/OrgStructures
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [HttpPost]
     public async Task<ActionResult<OrgStructureModel>> PostOrgStructure(OrgStructure orgStructure)
     {

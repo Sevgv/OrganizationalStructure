@@ -31,7 +31,12 @@ public class ImportController : ControllerBase
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
-  
+
+    /// <summary>
+    /// Deletes data from the database and writes new data from the file
+    /// </summary>
+    /// <param name="filePath">File path</param>
+    /// <returns>List of imported objects</returns>
     [HttpPost]
     public async Task<ActionResult<IEnumerable<OrgStructureModel>>> ImportFromFileToDB(string filePath)
     {
